@@ -8,33 +8,26 @@ import {
   Form, 
   Input, 
   DatePicker, 
-  TimePicker, 
   Checkbox, 
   Select, 
   message, 
   Typography, 
   Space,
   Spin,
-  Popover,
-  List,
-  Tag
+  Divider
 } from 'antd';
 import { 
   PlusOutlined, 
-  ClockCircleOutlined, 
   EnvironmentOutlined, 
-  TeamOutlined, 
-  BellOutlined,
-  DeleteOutlined,
-  EditOutlined
+  DeleteOutlined
 } from '@ant-design/icons';
-import { format, parseISO, isWithinInterval, isToday, isSameDay } from 'date-fns';
+import { parseISO, isSameDay, addMinutes, addHours, addDays } from 'date-fns';
 import EventService from '../services/EventService';
 import { useAuth } from '../contexts/AuthContext';
 import dayjs from 'dayjs';
 
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+const { Content } = Layout;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 const { Option } = Select;
@@ -68,24 +61,50 @@ const CalendarPage = () => {
 
   const handleCreateEvent = async (values) => {
     try {
+      // Get start and end times
+      const startTime = values.dateRange[0].toDate();
+      const endTime = values.dateRange[1].toDate();
+      
+      // Prepare reminders array based on preferences
+      const reminders = [];
+      
+      if (values.reminder_day_before) {
+        reminders.push({
+          remind_at: addDays(startTime, -1).toISOString(),
+          reminder_type: 'email'
+        });
+      }
+      
+      if (values.reminder_hour_before) {
+        reminders.push({
+          remind_at: addHours(startTime, -1).toISOString(),
+          reminder_type: 'email'
+        });
+      }
+      
+      if (values.reminder_20min_before) {
+        reminders.push({
+          remind_at: addMinutes(startTime, -20).toISOString(),
+          reminder_type: 'notification'
+        });
+      }
+      
       // Format values for API
       const eventData = {
         ...values,
-        start_time: values.dateRange[0].toISOString(),
-        end_time: values.dateRange[1].toISOString(),
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
         all_day: values.all_day || false,
         recurring: values.recurring || 'none',
         attendees: values.attendees || [],
-        reminders: values.reminders ? [{
-          remind_at: values.remind_at.toISOString(),
-          reminder_type: values.reminder_type || 'notification'
-        }] : []
+        reminders: reminders
       };
 
       // Remove fields not needed by API
       delete eventData.dateRange;
-      delete eventData.remind_at;
-      delete eventData.reminder_type;
+      delete eventData.reminder_day_before;
+      delete eventData.reminder_hour_before;
+      delete eventData.reminder_20min_before;
 
       await EventService.createEvent(eventData);
       message.success('Event created successfully');
@@ -102,24 +121,50 @@ const CalendarPage = () => {
     try {
       if (!currentEvent) return;
 
+      // Get start and end times
+      const startTime = values.dateRange[0].toDate();
+      const endTime = values.dateRange[1].toDate();
+      
+      // Prepare reminders array based on preferences
+      const reminders = [];
+      
+      if (values.reminder_day_before) {
+        reminders.push({
+          remind_at: addDays(startTime, -1).toISOString(),
+          reminder_type: 'email'
+        });
+      }
+      
+      if (values.reminder_hour_before) {
+        reminders.push({
+          remind_at: addHours(startTime, -1).toISOString(),
+          reminder_type: 'email'
+        });
+      }
+      
+      if (values.reminder_20min_before) {
+        reminders.push({
+          remind_at: addMinutes(startTime, -20).toISOString(),
+          reminder_type: 'notification'
+        });
+      }
+      
       // Format values for API
       const eventData = {
         ...values,
-        start_time: values.dateRange[0].toISOString(),
-        end_time: values.dateRange[1].toISOString(),
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
         all_day: values.all_day || false,
         recurring: values.recurring || 'none',
         attendees: values.attendees || [],
-        reminders: values.reminders ? [{
-          remind_at: values.remind_at.toISOString(),
-          reminder_type: values.reminder_type || 'notification'
-        }] : []
+        reminders: reminders
       };
 
       // Remove fields not needed by API
       delete eventData.dateRange;
-      delete eventData.remind_at;
-      delete eventData.reminder_type;
+      delete eventData.reminder_day_before;
+      delete eventData.reminder_hour_before;
+      delete eventData.reminder_20min_before;
 
       await EventService.updateEvent(currentEvent.id, eventData);
       message.success('Event updated successfully');
@@ -155,7 +200,22 @@ const CalendarPage = () => {
       dayjs(event.end_time)
     ];
 
-    const reminders = event.reminders && event.reminders.length > 0;
+    // Check if reminders exist for this event
+    const reminderDayBefore = event.reminders?.some(r => 
+      new Date(r.remind_at).getDate() === new Date(addDays(new Date(event.start_time), -1)).getDate()
+    );
+    
+    const reminderHourBefore = event.reminders?.some(r => {
+      const remindDate = new Date(r.remind_at);
+      const oneHourBefore = addHours(new Date(event.start_time), -1);
+      return Math.abs(remindDate.getTime() - oneHourBefore.getTime()) < 1000 * 60 * 5; // Within 5 minutes
+    });
+    
+    const reminder20MinBefore = event.reminders?.some(r => {
+      const remindDate = new Date(r.remind_at);
+      const twentyMinBefore = addMinutes(new Date(event.start_time), -20);
+      return Math.abs(remindDate.getTime() - twentyMinBefore.getTime()) < 1000 * 60 * 5; // Within 5 minutes
+    });
     
     editForm.setFieldsValue({
       title: event.title,
@@ -165,9 +225,9 @@ const CalendarPage = () => {
       all_day: event.all_day,
       recurring: event.recurring || 'none',
       attendees: event.attendees ? event.attendees.map(a => a.user_id) : [],
-      reminders,
-      remind_at: reminders ? dayjs(event.reminders[0].remind_at) : null,
-      reminder_type: reminders ? event.reminders[0].reminder_type : 'notification'
+      reminder_day_before: reminderDayBefore,
+      reminder_hour_before: reminderHourBefore,
+      reminder_20min_before: reminder20MinBefore
     });
     
     setEditModalVisible(true);
@@ -183,7 +243,7 @@ const CalendarPage = () => {
         {dayEvents.slice(0, 3).map(event => (
           <li key={event.id} onClick={(e) => { e.stopPropagation(); openEditModal(event); }}>
             <Badge 
-              status={event.creator_id === user.id ? "success" : "processing"} 
+              status={event.creator_id === user?.id ? "success" : "processing"} 
               text={<Text ellipsis style={{ fontSize: '12px' }}>{event.title}</Text>} 
             />
           </li>
@@ -198,62 +258,6 @@ const CalendarPage = () => {
       </ul>
     );
   };
-
-  const renderEventDetails = (event) => (
-    <div style={{ maxWidth: 300 }}>
-      <Title level={5}>{event.title}</Title>
-      
-      {event.description && (
-        <div style={{ marginBottom: 8 }}>
-          <Text>{event.description}</Text>
-        </div>
-      )}
-      
-      <div style={{ marginBottom: 8 }}>
-        <ClockCircleOutlined style={{ marginRight: 8 }} />
-        <Text>
-          {format(parseISO(event.start_time), 'MMM dd, yyyy HH:mm')} - 
-          {format(parseISO(event.end_time), 'HH:mm')}
-        </Text>
-      </div>
-      
-      {event.location && (
-        <div style={{ marginBottom: 8 }}>
-          <EnvironmentOutlined style={{ marginRight: 8 }} />
-          <Text>{event.location}</Text>
-        </div>
-      )}
-      
-      {event.attendees && event.attendees.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <TeamOutlined style={{ marginRight: 8 }} />
-          <Text>Attendees: {event.attendees.length}</Text>
-        </div>
-      )}
-      
-      <Space style={{ marginTop: 16 }}>
-        <Button 
-          icon={<EditOutlined />} 
-          type="primary" 
-          size="small"
-          onClick={() => openEditModal(event)}
-        >
-          Edit
-        </Button>
-        <Button 
-          icon={<DeleteOutlined />} 
-          danger 
-          size="small"
-          onClick={async () => {
-            setCurrentEvent(event);
-            await handleDeleteEvent();
-          }}
-        >
-          Delete
-        </Button>
-      </Space>
-    </div>
-  );
 
   const monthCellRender = (value) => {
     const monthEvents = events.filter(event => {
@@ -273,33 +277,31 @@ const CalendarPage = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#fff', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Title level={3} style={{ margin: 0 }}>My Calendar</Title>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => {
-            form.resetFields();
-            setCreateModalVisible(true);
-          }}
-        >
-          New Event
-        </Button>
-      </Header>
-      
-      <Content style={{ padding: '24px', background: '#fff' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <Spin size="large" />
+    <Content style={{ padding: '24px', background: '#fff' }}>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => {
+                form.resetFields();
+                setCreateModalVisible(true);
+              }}
+            >
+              New Event
+            </Button>
           </div>
-        ) : (
           <Calendar 
             dateCellRender={dateCellRender} 
             monthCellRender={monthCellRender}
           />
-        )}
-      </Content>
+        </>
+      )}
       
       {/* Create Event Modal */}
       <Modal
@@ -315,7 +317,6 @@ const CalendarPage = () => {
           onFinish={handleCreateEvent}
           initialValues={{
             recurring: 'none',
-            reminder_type: 'notification',
             dateRange: [dayjs(), dayjs().add(1, 'hour')]
           }}
         >
@@ -363,34 +364,18 @@ const CalendarPage = () => {
             </Select>
           </Form.Item>
           
-          <Form.Item name="reminders" valuePropName="checked">
-            <Checkbox>Set Reminder</Checkbox>
+          <Divider orientation="left">Reminders</Divider>
+          
+          <Form.Item name="reminder_day_before" valuePropName="checked">
+            <Checkbox>Email reminder 1 day before</Checkbox>
           </Form.Item>
           
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.reminders !== currentValues.reminders}
-          >
-            {({ getFieldValue }) => 
-              getFieldValue('reminders') ? (
-                <>
-                  <Form.Item
-                    name="remind_at"
-                    label="Remind At"
-                    rules={[{ required: true, message: 'Please select reminder time' }]}
-                  >
-                    <DatePicker showTime style={{ width: '100%' }} />
-                  </Form.Item>
-                  
-                  <Form.Item name="reminder_type" label="Reminder Type">
-                    <Select>
-                      <Option value="notification">Notification</Option>
-                      <Option value="email">Email</Option>
-                    </Select>
-                  </Form.Item>
-                </>
-              ) : null
-            }
+          <Form.Item name="reminder_hour_before" valuePropName="checked">
+            <Checkbox>Email reminder 1 hour before</Checkbox>
+          </Form.Item>
+          
+          <Form.Item name="reminder_20min_before" valuePropName="checked">
+            <Checkbox>Notification 20 minutes before</Checkbox>
           </Form.Item>
           
           <Form.Item>
@@ -461,34 +446,18 @@ const CalendarPage = () => {
             </Select>
           </Form.Item>
           
-          <Form.Item name="reminders" valuePropName="checked">
-            <Checkbox>Set Reminder</Checkbox>
+          <Divider orientation="left">Reminders</Divider>
+          
+          <Form.Item name="reminder_day_before" valuePropName="checked">
+            <Checkbox>Email reminder 1 day before</Checkbox>
           </Form.Item>
           
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.reminders !== currentValues.reminders}
-          >
-            {({ getFieldValue }) => 
-              getFieldValue('reminders') ? (
-                <>
-                  <Form.Item
-                    name="remind_at"
-                    label="Remind At"
-                    rules={[{ required: true, message: 'Please select reminder time' }]}
-                  >
-                    <DatePicker showTime style={{ width: '100%' }} />
-                  </Form.Item>
-                  
-                  <Form.Item name="reminder_type" label="Reminder Type">
-                    <Select>
-                      <Option value="notification">Notification</Option>
-                      <Option value="email">Email</Option>
-                    </Select>
-                  </Form.Item>
-                </>
-              ) : null
-            }
+          <Form.Item name="reminder_hour_before" valuePropName="checked">
+            <Checkbox>Email reminder 1 hour before</Checkbox>
+          </Form.Item>
+          
+          <Form.Item name="reminder_20min_before" valuePropName="checked">
+            <Checkbox>Notification 20 minutes before</Checkbox>
           </Form.Item>
           
           <Form.Item>
@@ -506,7 +475,7 @@ const CalendarPage = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </Content>
   );
 };
 

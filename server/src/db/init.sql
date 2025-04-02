@@ -38,6 +38,7 @@ CREATE TABLE reminders (
   event_id INT NOT NULL,
   remind_at DATETIME NOT NULL,
   reminder_type VARCHAR(50) DEFAULT 'notification',
+  processed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
@@ -57,8 +58,8 @@ CREATE TABLE event_attendees (
 
 -- Insert sample users
 INSERT INTO users (username, email, password_hash, first_name, last_name) VALUES
-  ('john.doe', 'john.doe@example.com', '$2b$10$123456789012345678901uQHxzxwxN.zf.gFdCi.5H53vi6qJvbmhO', 'John', 'Doe'),
-  ('jane.smith', 'jane.smith@example.com', '$2b$10$123456789012345678901uZtCAoKlYIrEQUJA/OEkWAhFE4AJ71rG', 'Jane', 'Smith');
+  ('john.doe', 'john.doe@example.com', '$2b$10$r3rGOGIuBqklnqB7aFxcd.jkjWQ7kO1sj7ztc4CKMgqe4oDZ7m5lS', 'John', 'Doe'),
+  ('jane.smith', 'jane.smith@example.com', '$2b$10$r3rGOGIuBqklnqB7aFxcd.jkjWQ7kO1sj7ztc4CKMgqe4oDZ7m5lS', 'Jane', 'Smith');
 
 -- Insert sample events
 INSERT INTO events (title, description, location, creator_id, start_time, end_time, all_day) VALUES

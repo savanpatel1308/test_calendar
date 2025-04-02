@@ -1,3 +1,4 @@
+// server/src/utils/validationSchemas.js
 const Joi = require('joi');
 
 // User schemas
