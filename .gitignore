@@ -1,0 +1,30 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+
+# dotenv environment files
+.env
+
+# Build outputs
+client/build/
+dist/
+coverage/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Mac/Linux trash
+.Trashes
+.idea/
+
+# Codio / Coventry
+.codio/

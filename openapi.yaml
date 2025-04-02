@@ -1,0 +1,584 @@
+openapi: 3.0.3
+info:
+  title: Calendar and Scheduling API
+  description: RESTful API for managing calendar events and scheduling
+  version: 1.0.0
+  
+servers:
+  - url: http://localhost:3001/api
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the status of the API
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: API is running
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /users/register:
+    post:
+      summary: Register a new user
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+        '409':
+          description: Username or email already exists
+
+  /users/login:
+    post:
+      summary: User login
+      description: Authenticate user and return JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /users/me:
+    get:
+      summary: Get current user profile
+      description: Returns the profile of the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+    patch:
+      summary: Update user profile
+      description: Update the profile of the authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+
+  /events:
+    get:
+      summary: Get all events
+      description: Returns all events for the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create a new event
+      description: Create a new calendar event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - start_time
+                - end_time
+              properties:
+                title:
+                  type: string
+                  example: Team Meeting
+                description:
+                  type: string
+                  example: Weekly sync with the team
+                location:
+                  type: string
+                  example: Conference Room A
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+                all_day:
+                  type: boolean
+                  default: false
+                recurring:
+                  type: string
+                  enum: [none, daily, weekly, monthly, yearly]
+                  default: none
+                attendees:
+                  type: array
+                  items:
+                    type: integer
+                  example: [2, 3]
+                reminders:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - remind_at
+                    properties:
+                      remind_at:
+                        type: string
+                        format: date-time
+                      reminder_type:
+                        type: string
+                        enum: [notification, email]
+                        default: notification
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+
+  /events/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Event ID
+    get:
+      summary: Get event by ID
+      description: Returns a specific event by ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Event retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/Event'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found
+    put:
+      summary: Update event
+      description: Update an existing event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+                all_day:
+                  type: boolean
+                recurring:
+                  type: string
+                  enum: [none, daily, weekly, monthly, yearly]
+                attendees:
+                  type: array
+                  items:
+                    type: integer
+                reminders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      remind_at:
+                        type: string
+                        format: date-time
+                      reminder_type:
+                        type: string
+                        enum: [notification, email]
+      responses:
+        '200':
+          description: Event updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found
+    delete:
+      summary: Delete event
+      description: Delete an existing event
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Event deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Event deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found
+
+  /events/{id}/attend:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Event ID
+    patch:
+      summary: Update attendance status
+      description: Update the attendance status for the authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, accepted, declined, tentative]
+                  example: accepted
+      responses:
+        '200':
+          description: Attendance status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Attendance status updated successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Event not found or user not invited
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: john.doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        first_name:
+          type: string
+          example: John
+        last_name:
+          type: string
+          example: Doe
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+        - created_at
+        - updated_at
+    
+    UserRegistration:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john.doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+        first_name:
+          type: string
+          example: John
+        last_name:
+          type: string
+          example: Doe
+      required:
+        - username
+        - email
+        - password
+    
+    UserLogin:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john.doe
+        password:
+          type: string
+          format: password
+          example: securepassword123
+      required:
+        - username
+        - password
+    
+    AuthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    
+    Attendee:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 2
+        status:
+          type: string
+          enum: [pending, accepted, declined, tentative]
+          example: accepted
+        username:
+          type: string
+          example: jane.smith
+        email:
+          type: string
+          format: email
+          example: jane.smith@example.com
+        first_name:
+          type: string
+          example: Jane
+        last_name:
+          type: string
+          example: Smith
+    
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        event_id:
+          type: integer
+          example: 1
+        remind_at:
+          type: string
+          format: date-time
+        reminder_type:
+          type: string
+          enum: [notification, email]
+          default: notification
+        created_at:
+          type: string
+          format: date-time
+    
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Team Meeting
+        description:
+          type: string
+          example: Weekly sync with the team
+        location:
+          type: string
+          example: Conference Room A
+        creator_id:
+          type: integer
+          example: 1
+        creator_username:
+          type: string
+          example: john.doe
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        all_day:
+          type: boolean
+          default: false
+        recurring:
+          type: string
+          enum: [none, daily, weekly, monthly, yearly]
+          default: none
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        attendees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attendee'
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
